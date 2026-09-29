@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * Dark-only theme. Values are deliberately high-chroma: the surfaces stay dark
+ * but the text, accents and borders are lifted well clear of the background so
+ * small 11px type stays legible and adjacent team colours stay separable.
+ */
+:root {
+  color-scheme: dark;
+
+  --surface-0: #080b12;
+  --surface-1: #121826;
+  --surface-2: #1b2233;
+  --surface-3: #28324a;
+
+  --line: #37425e;
+
+  --text: #f0f3f9;
+  --text-dim: #c3cbe0;
+  --muted: #a6b1ca;
+  --faint: #7e8aa6;
+
+  --accent: #5b9dff;
+  --accent-strong: #7ab0ff;
+  --positive: #3ee6a4;
+  --negative: #ff6f74;
+  --warn: #ffc44d;
+
+  /* Fallback pair for teams whose colour ESPN does not supply. */
+  --away-fallback: #4f8cff;
+  --home-fallback: #ff6166;
+}
+
+html,
+body {
+  background: var(--surface-0);
+  color: var(--text);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
+  /* iOS Safari zooms any input under 16px on focus. */
+  -webkit-text-size-adjust: 100%;
+}
+
+@utility card {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horizontal scroll containers get a visible edge so they read as scrollable. */
+@utility scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-0);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4763;
 }
