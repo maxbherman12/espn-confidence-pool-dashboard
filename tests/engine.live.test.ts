@@ -22,6 +22,7 @@ import {
   undecidedGames,
   weekCeiling,
 } from "@/lib/pool/simulate";
+import { entryLabel } from "@/lib/name";
 import type { PoolModel } from "@/lib/types";
 
 // No league is baked into the repo. Point these at any public group to verify
@@ -126,7 +127,7 @@ describe("confidence scoring engine (live ESPN data)", () => {
         if (!mine) continue;
         if (mine.score !== espn.score || mine.wins !== espn.wins || mine.losses !== espn.losses) {
           mismatches.push(
-            `${e.displayName} wk${week}: mine=${JSON.stringify(mine)} espn=${JSON.stringify({ score: espn.score, wins: espn.wins, losses: espn.losses })}`,
+            `${entryLabel(e.entryName, e.displayName)} wk${week}: mine=${JSON.stringify(mine)} espn=${JSON.stringify({ score: espn.score, wins: espn.wins, losses: espn.losses })}`,
           );
         }
       }
@@ -143,7 +144,7 @@ describe("confidence scoring engine (live ESPN data)", () => {
         total += v.score;
       }
       if (total !== e.espn.overallScore) {
-        mismatches.push(`${e.displayName}: ${total} vs ${e.espn.overallScore}`);
+        mismatches.push(`${entryLabel(e.entryName, e.displayName)}: ${total} vs ${e.espn.overallScore}`);
       }
     }
     expect(mismatches).toEqual([]);
@@ -153,7 +154,7 @@ describe("confidence scoring engine (live ESPN data)", () => {
     const scores = pool.entries.map((e) => e.espn.overallScore);
     const ranks = competitionRanks(scores);
     pool.entries.forEach((e, i) => {
-      expect(`${e.displayName}:${ranks[i]}`).toBe(`${e.displayName}:${e.espn.rank}`);
+      expect(`${entryLabel(e.entryName, e.displayName)}:${ranks[i]}`).toBe(`${entryLabel(e.entryName, e.displayName)}:${e.espn.rank}`);
     });
   });
 
@@ -165,7 +166,7 @@ describe("confidence scoring engine (live ESPN data)", () => {
       if (typeof espn !== "number") continue;
       const ours = reachablePoints(index, e.entryId, week);
       if (ours !== espn) {
-        failures.push(`${e.displayName}: ${ours} vs ${espn}`);
+        failures.push(`${entryLabel(e.entryName, e.displayName)}: ${ours} vs ${espn}`);
       }
     }
     expect(failures).toEqual([]);

@@ -17,6 +17,7 @@ import {
 import { useIdentity, usePool, usePoolIndex } from "@/lib/hooks";
 import { aggregateGame } from "@/lib/pool/aggregate";
 import { simulate, type Scenario } from "@/lib/pool/simulate";
+import { entryAltName, entryLabel, matchesEntryName } from "@/lib/name";
 import type { PoolGame, RankedEntry } from "@/lib/types";
 
 export default function WhatIfPage() {
@@ -41,9 +42,7 @@ function WhatIf() {
   const week = weekParam ?? pool?.meta.currentWeek ?? 1;
   const identity = useIdentity();
   const me = identity.name
-    ? (pool?.entries.find(
-        (e) => e.displayName.toLowerCase() === identity.name!.toLowerCase(),
-      )?.entryId ?? null)
+    ? (pool?.entries.find((e) => matchesEntryName(e, identity.name!))?.entryId ?? null)
     : null;
 
   // Scenario lives in the URL so a projection can be shared.
@@ -132,7 +131,7 @@ function WhatIf() {
             <option value="">not set</option>
             {pool.entries.map((e) => (
               <option key={e.entryId} value={e.displayName}>
-                {e.displayName}
+                {entryLabel(e.entryName, e.displayName)}
               </option>
             ))}
           </Control>
@@ -436,7 +435,9 @@ function StandingsTable({
                         isMe ? "font-semibold" : ""
                       }`}
                     >
-                      {r.displayName}
+                      <span title={entryAltName(r.entryName, r.displayName)}>
+                        {entryLabel(r.entryName, r.displayName)}
+                      </span>
                     </span>
                   </td>
                   <td className="num px-2 py-2 text-right font-semibold sm:px-3 sm:py-1.5">

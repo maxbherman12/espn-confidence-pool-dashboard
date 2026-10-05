@@ -1,3 +1,4 @@
+import { entryLabel } from "@/lib/name";
 import type {
   EntryPick,
   GameAgg,
@@ -126,13 +127,21 @@ export function aggregateGame(game: PoolGame, index: PoolIndex): GameAgg {
     const correct = correctEntries.get(outcome.outcomeId) ?? [];
     const pickers = entryPicks
       .get(outcome.outcomeId)
-      ?.map(({ entryId, confidence, result }) => ({
-        entryId,
-        displayName: index.entriesById.get(entryId)?.displayName ?? entryId,
-        confidence,
-        result,
-      }))
-      .sort((a, b) => b.confidence - a.confidence || a.displayName.localeCompare(b.displayName))
+      ?.map(({ entryId, confidence, result }) => {
+        const e = index.entriesById.get(entryId);
+        return {
+          entryId,
+          displayName: e?.displayName ?? entryId,
+          entryName: e?.entryName ?? "",
+          confidence,
+          result,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.confidence - a.confidence ||
+          entryLabel(a.entryName, a.displayName).localeCompare(entryLabel(b.entryName, b.displayName)),
+      )
       ?? [];
     return {
       outcome,

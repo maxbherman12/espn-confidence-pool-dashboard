@@ -1,10 +1,12 @@
 import type { PoolIndex } from "./aggregate";
+import { entryLabel } from "@/lib/name";
 import { competitionRanks } from "./rank";
 import type { PoolModel } from "@/lib/types";
 
 export interface WeekRow {
   entryId: string;
   displayName: string;
+  entryName: string;
   score: number;
   rank: number;
 }
@@ -27,6 +29,7 @@ export function weekLeaderboard(
       return {
         entryId: e.entryId,
         displayName: e.displayName,
+        entryName: e.entryName,
         score: e.espn.byWeek[String(week)]?.score ?? 0,
         played,
       };
@@ -38,7 +41,11 @@ export function weekLeaderboard(
     .map((r, i) => ({ ...r, rank: ranks[i] }))
     .sort(
       (a, b) =>
-        a.rank - b.rank || b.score - a.score || a.displayName.localeCompare(b.displayName),
+        a.rank - b.rank ||
+        b.score - a.score ||
+        entryLabel(a.entryName, a.displayName).localeCompare(
+          entryLabel(b.entryName, b.displayName),
+        ),
     );
 }
 
