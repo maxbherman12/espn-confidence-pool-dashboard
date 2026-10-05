@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { entryAltName, entryLabel } from "@/lib/name";
 import { readableColor, TeamBadge } from "@/components/ui";
 import type { GameAgg, OutcomeAgg } from "@/lib/types";
 
@@ -186,7 +187,12 @@ function SideDetail({
                     : "border-[var(--line)] text-[var(--text-dim)]"
                 }`}
               >
-                <span className="max-w-[9rem] truncate">{p.displayName}</span>
+                <span
+                  className="max-w-[9rem] truncate"
+                  title={entryAltName(p.entryName, p.displayName)}
+                >
+                  {entryLabel(p.entryName, p.displayName)}
+                </span>
                 <span className="num rounded bg-[var(--surface-3)] px-1 text-[10px] text-[var(--text)]">
                   {p.confidence}
                 </span>

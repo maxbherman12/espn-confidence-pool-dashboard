@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { PoolIndex } from "@/lib/pool/aggregate";
 import type { PoolEntry, PoolGame } from "@/lib/types";
 import { readableColor } from "@/components/ui";
+import { entryAltName, entryLabel } from "@/lib/name";
 
 const ROW_H = 24;
 const CELL_W = 30;
@@ -130,7 +131,8 @@ export function ConfidenceHeatmap({
                   fontSize={11}
                   fontWeight={isMe ? 600 : 400}
                 >
-                  {truncate(entry.displayName, 15)}
+                  <title>{entryAltName(entry.entryName, entry.displayName)}</title>
+                  {truncate(entryLabel(entry.entryName, entry.displayName), 15)}
                 </text>
                 {games.map((g, i) => {
                   const pick = picks?.get(g.propId);
@@ -199,7 +201,7 @@ export function ConfidenceHeatmap({
         </span>
         {hover ? (
           <span className="text-[var(--text-dim)]">
-            {hover.entry.displayName} · {hover.game.name} ·{" "}
+            {entryLabel(hover.entry.entryName, hover.entry.displayName)} · {hover.game.name} ·{" "}
             {hover.confidence === null ? (
               <span className="text-[var(--negative)]">no pick</span>
             ) : (

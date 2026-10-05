@@ -184,6 +184,7 @@ export interface OutcomeAgg {
   pickers: {
     entryId: string;
     displayName: string;
+    entryName: string;
     confidence: number;
     result: "CORRECT" | "INCORRECT" | "UNDECIDED";
   }[];

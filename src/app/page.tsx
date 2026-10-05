@@ -23,6 +23,7 @@ import {
 } from "@/lib/hooks";
 import { aggregateWeek } from "@/lib/pool/aggregate";
 import { weekSummary } from "@/lib/pool/summary";
+import { entryAltName, entryLabel, matchesEntryName } from "@/lib/name";
 
 export default function InsightsPage() {
   return (
@@ -60,9 +61,7 @@ function Insights() {
 
   const { meta } = pool;
   const me = identity.name
-    ? (pool.entries.find(
-        (e) => e.displayName.toLowerCase() === identity.name!.toLowerCase(),
-      )?.entryId ?? null)
+    ? (pool.entries.find((e) => matchesEntryName(e, identity.name!))?.entryId ?? null)
     : null;
   const weekLabel = meta.weeks.find((w) => w.id === activeWeek)?.label ?? "";
 
@@ -103,7 +102,7 @@ function Insights() {
             <option value="">not set</option>
             {pool.entries.map((e) => (
               <option key={e.entryId} value={e.displayName}>
-                {e.displayName}
+                {entryLabel(e.entryName, e.displayName)}
               </option>
             ))}
           </Control>
@@ -130,13 +129,25 @@ function Insights() {
         />
         <Stat
           label="First this week"
-          value={summary.leader ? truncate(summary.leader.displayName, 18) : "—"}
+          value={summary.leader ? (
+            <span title={entryAltName(summary.leader.entryName, summary.leader.displayName)}>
+              {truncate(entryLabel(summary.leader.entryName, summary.leader.displayName), 18)}
+            </span>
+          ) : (
+            "—"
+          )}
           sub={summary.leader ? `${summary.leader.score} points` : undefined}
           tone={summary.leader ? "positive" : "default"}
         />
         <Stat
           label="Last this week"
-          value={summary.last ? truncate(summary.last.displayName, 18) : "—"}
+          value={summary.last ? (
+            <span title={entryAltName(summary.last.entryName, summary.last.displayName)}>
+              {truncate(entryLabel(summary.last.entryName, summary.last.displayName), 18)}
+            </span>
+          ) : (
+            "—"
+          )}
           sub={summary.last ? `${summary.last.score} points` : undefined}
           tone={summary.last ? "negative" : "default"}
         />

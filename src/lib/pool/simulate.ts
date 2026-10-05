@@ -1,3 +1,4 @@
+import { entryLabel } from "@/lib/name";
 import type {
   PoolGame,
   PoolModel,
@@ -248,7 +249,9 @@ function buildRanked(
       (a, b) =>
         a.rank - b.rank ||
         b.score - a.score ||
-        a.displayName.localeCompare(b.displayName),
+        entryLabel(a.entryName, a.displayName).localeCompare(
+          entryLabel(b.entryName, b.displayName),
+        ),
     );
 }
 
