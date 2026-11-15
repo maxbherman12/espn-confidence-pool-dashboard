@@ -196,9 +196,10 @@ export function normalizePool(input: NormalizeInput): PoolModel {
     );
 
     const complete = raw.correctOutcomes.length > 0;
-    const inProgress =
-      sbEvent?.status?.type?.state === "in" ||
-      sbEvent?.status?.type?.completed === false;
+    // Only "in" means the game is being played. `completed === false` is also
+    // true for games that have not kicked off, which used to mark every
+    // upcoming game as live.
+    const inProgress = sbEvent?.status?.type?.state === "in";
 
     let status: PoolGame["status"] = "PENDING";
     let statusDetail: string | null = null;
@@ -232,6 +233,7 @@ export function normalizePool(input: NormalizeInput): PoolModel {
       eventId,
       status,
       statusDetail,
+      kickoff: raw.lockDate ?? raw.date ?? null,
       correctOutcomeIds: raw.correctOutcomes ?? [],
       outcomes,
       spread: pc?.spread ?? null,

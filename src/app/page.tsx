@@ -1,186 +1,251 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
-import { ConfidenceHeatmap } from "@/components/charts/ConfidenceHeatmap";
-import { GameRow } from "@/components/GameRow";
-import { LeagueGate, useLeagueParam } from "@/components/LeagueGate";
-import { SeasonTrend } from "@/components/SeasonTrend";
-import { WeekSelector } from "@/components/WeekSelector";
-import {
-  Btn,
-  Card,
-  Control,
-  ErrorPanel,
-  SectionHead,
-  Stat,
-} from "@/components/ui";
-import {
-  relativeAge,
-  useIdentity,
-  useNow,
-  usePool,
-  usePoolIndex,
-} from "@/lib/hooks";
-import { aggregateWeek } from "@/lib/pool/aggregate";
-import { weekSummary } from "@/lib/pool/summary";
-import { entryAltName, entryLabel, matchesEntryName } from "@/lib/name";
+import { motion } from "motion/react";
+import { useMemo, useState } from "react";
+import { PoolScreen, type PoolContext } from "@/components/PoolScreen";
+import { AnimatedNumber, Avatar, PageHeader, WeekPicker, ordinal } from "@/components/ui";
+import type { Person } from "@/lib/name";
+import { openGames, standings, type StandingRow } from "@/lib/pool/standings";
 
-export default function InsightsPage() {
+export default function StandingsPage() {
+  return <PoolScreen>{(ctx) => <Standings {...ctx} />}</PoolScreen>;
+}
+
+function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
+  const [week, setWeek] = useState(pool.meta.currentWeek);
+  const [mode, setMode] = useState<"season" | "week">("season");
+  const rows = useMemo(() => standings(pool, index, week, mode), [pool, index, week, mode]);
+  const seasonRows = useMemo(
+    () => (mode === "season" ? rows : standings(pool, index, week, "season")),
+    [pool, index, week, mode, rows],
+  );
+  const me = seasonRows.find((r) => r.entryId === meId)!;
+  const leader = seasonRows[0];
+  const second = seasonRows.find((r) => r.entryId !== meId);
+  const open = openGames(index, week);
+
   return (
-    <Suspense fallback={<p className="py-16 text-sm text-[var(--muted)]">Loading…</p>}>
-      <LeagueGate>
-        <Insights />
-      </LeagueGate>
-    </Suspense>
+    <>
+      <PageHeader
+        eyebrow={`${pool.meta.groupName} · Week ${week}`}
+        title="Standings"
+        right={<WeekPicker weeks={pool.meta.weeks} value={week} onChange={setWeek} />}
+      />
+
+      <YouCard
+        me={me}
+        person={people.get(meId)!}
+        leaderName={people.get(leader.entryId)?.name ?? ""}
+        secondValue={second?.value ?? 0}
+        open={open}
+        onSwitch={switchMe}
+      />
+
+      <div className="flex items-center justify-between gap-2 px-5 pb-2 pt-1">
+        <div role="tablist" aria-label="Standings view" className="flex rounded-full bg-card p-1 shadow-[var(--shadow)]">
+          {(["season", "week"] as const).map((m) => (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => setMode(m)}
+              className={`min-h-9 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                mode === m ? "bg-ink text-bg" : "text-muted"
+              }`}
+            >
+              {m === "season" ? "Season" : "This week"}
+            </button>
+          ))}
+        </div>
+        <Legend />
+      </div>
+
+      <motion.ol layout className="card mx-4 overflow-hidden py-1">
+        {rows.map((r, i) => (
+          <Row
+            key={r.entryId}
+            row={r}
+            index={i}
+            person={people.get(r.entryId)!}
+            me={r.entryId === meId}
+            mode={mode}
+          />
+        ))}
+      </motion.ol>
+    </>
   );
 }
 
-function Insights() {
-  const { leagueId } = useLeagueParam();
-  const { data: pool, error, isLoading, isFetching, refetch } = usePool(leagueId);
-  const index = usePoolIndex(pool);
-  const now = useNow();
-  const identity = useIdentity();
-  const [weekOverride, setWeekOverride] = useState<number | null>(null);
+function YouCard({
+  me,
+  person,
+  leaderName,
+  secondValue,
+  open,
+  onSwitch,
+}: {
+  me: StandingRow;
+  person: Person;
+  leaderName: string;
+  secondValue: number;
+  open: number;
+  onSwitch: () => void;
+}) {
+  const lost = me.ladder - me.weekMax;
+  const r = 46;
+  const c = 2 * Math.PI * r;
+  const seg = (v: number) => (me.ladder ? (v / me.ladder) * c : 0);
+  const won = seg(me.weekScore);
+  const possible = seg(me.weekMax - me.weekScore);
+  const gone = seg(lost);
+  const done = open === 0;
 
-  const activeWeek = weekOverride ?? pool?.meta.currentWeek ?? 1;
-  const weekAgg = useMemo(
-    () => (index ? aggregateWeek(activeWeek, index) : null),
-    [index, activeWeek],
-  );
-  const summary = useMemo(
-    () => (pool && index ? weekSummary(pool, index, activeWeek) : null),
-    [pool, index, activeWeek],
-  );
-
-  if (isLoading || !leagueId) {
-    return <p className="py-16 text-sm text-[var(--muted)]">Loading league…</p>;
-  }
-  if (error) return <ErrorPanel error={error as Error} />;
-  if (!pool || !index || !weekAgg || !summary) return null;
-
-  const { meta } = pool;
-  const me = identity.name
-    ? (pool.entries.find((e) => matchesEntryName(e, identity.name!))?.entryId ?? null)
-    : null;
-  const weekLabel = meta.weeks.find((w) => w.id === activeWeek)?.label ?? "";
+  const standing =
+    me.rank === 1
+      ? `In 1st, ${me.value - secondValue} ahead.`
+      : `${me.back} behind ${leaderName}.`;
+  const weekLine = done
+    ? `Scored ${me.weekScore} of ${me.ladder} this week.`
+    : `${lost ? `Lost ${lost} so far` : "Nothing lost yet"} · ${open} game${open === 1 ? "" : "s"} still open.`;
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <header className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
-            {meta.groupName}
-          </h1>
-          <p className="mt-1 text-xs text-[var(--faint)]">
-            {meta.challengeName} · {meta.scoringFormatLabel} · {meta.groupSize} entries
-          </p>
-          {meta.warnings.length > 0 ? (
-            <ul className="mt-2 space-y-0.5">
-              {meta.warnings.map((w) => (
-                <li key={w} className="text-[11px] text-[var(--warn)]">
-                  ⚠ {w}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+    <section aria-label="You" className="card mx-4 my-2 flex items-center gap-4 p-[18px]">
+      <div className="relative size-28 shrink-0">
+        <svg
+          width="112"
+          height="112"
+          viewBox="0 0 112 112"
+          role="img"
+          aria-label={`This week: ${me.weekScore} scored, ${me.weekMax - me.weekScore} still possible, ${lost} lost, out of ${me.ladder}`}
+          className="-rotate-90"
+        >
+          <circle cx="56" cy="56" r={r} fill="none" stroke="var(--line)" strokeWidth="12" />
+          {[
+            { len: won, off: 0, color: "var(--win)" },
+            { len: possible, off: won, color: "var(--accent-track)" },
+            { len: gone, off: won + possible, color: "var(--loss)" },
+          ].map((s, i) => (
+            <motion.circle
+              key={i}
+              cx="56"
+              cy="56"
+              r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth="12"
+              strokeDashoffset={-s.off}
+              initial={{ strokeDasharray: `0 ${c}` }}
+              animate={{ strokeDasharray: `${s.len} ${c}` }}
+              transition={{ duration: 1.1, delay: 0.1 + i * 0.15, ease: [0.2, 0.8, 0.2, 1] }}
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="text-[30px] font-extrabold leading-none tracking-[-1px] text-accent">
+            <AnimatedNumber value={done ? me.weekScore : me.weekMax} />
+          </div>
+          <div className="mt-1 text-[11px] font-semibold text-muted">
+            {done ? "scored" : "max this week"}
+          </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <label
-            htmlFor="identity"
-            className="text-[11px] font-medium uppercase tracking-wider text-[var(--faint)]"
-          >
-            I am
-          </label>
-          <Control
-            id="identity"
-            value={identity.name ?? ""}
-            onChange={(e) => identity.setName(e.target.value || null)}
-            className="min-w-0 flex-1 sm:max-w-[200px] sm:flex-none"
-          >
-            <option value="">not set</option>
-            {pool.entries.map((e) => (
-              <option key={e.entryId} value={e.displayName}>
-                {entryLabel(e.entryName, e.displayName)}
-              </option>
-            ))}
-          </Control>
-          <Btn onClick={() => void refetch()} className="ml-auto sm:ml-0">
-            Refresh
-          </Btn>
-          <span className="w-full text-[11px] text-[var(--faint)] sm:w-auto">
-            {isFetching ? "refreshing…" : relativeAge(meta.fetchedAt, now)}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <button type="button" onClick={onSwitch} className="flex min-w-0 items-center gap-2 text-left" aria-label={`You are ${person.name}. Tap to switch.`}>
+          <Avatar person={person} me size={28} />
+          <span className="truncate text-[15px] font-bold">{person.name}</span>
+        </button>
+        <div className="text-[28px] font-extrabold leading-tight tracking-[-0.6px]">
+          {ordinal(me.rank)}{" "}
+          <span className="text-[15px] font-semibold text-muted">
+            · <AnimatedNumber value={me.value} /> pts
           </span>
         </div>
-      </header>
+        <div className="text-[13px] leading-snug text-muted">
+          {standing} {weekLine}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-      <WeekSelector weeks={meta.weeks} value={activeWeek} onChange={setWeekOverride} />
-
-      <Card className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:gap-5">
-        <Stat
-          label={`Average · ${weekLabel}`}
-          value={summary.empty ? "—" : summary.average.toFixed(1)}
-          sub={
-            summary.empty
-              ? "no picks submitted yet"
-              : `points, ${summary.participants} participating`
-          }
-        />
-        <Stat
-          label="First this week"
-          value={summary.leader ? (
-            <span title={entryAltName(summary.leader.entryName, summary.leader.displayName)}>
-              {truncate(entryLabel(summary.leader.entryName, summary.leader.displayName), 18)}
-            </span>
-          ) : (
-            "—"
-          )}
-          sub={summary.leader ? `${summary.leader.score} points` : undefined}
-          tone={summary.leader ? "positive" : "default"}
-        />
-        <Stat
-          label="Last this week"
-          value={summary.last ? (
-            <span title={entryAltName(summary.last.entryName, summary.last.displayName)}>
-              {truncate(entryLabel(summary.last.entryName, summary.last.displayName), 18)}
-            </span>
-          ) : (
-            "—"
-          )}
-          sub={summary.last ? `${summary.last.score} points` : undefined}
-          tone={summary.last ? "negative" : "default"}
-        />
-      </Card>
-
-      <section className="space-y-3">
-        <SectionHead
-          title="Pick distribution"
-          hint="bar width is the share of members on each side — tap one for who backed it"
-        />
-        {weekAgg.games.map((agg) => (
-          <GameRow key={agg.game.propId} agg={agg} highlightEntryId={me} />
-        ))}
-      </section>
-
-      <section className="space-y-3">
-        <SectionHead title="Confidence heatmap" hint={`every member for ${weekLabel}`} />
-        <Card className="p-3 sm:p-4">
-          <ConfidenceHeatmap
-            games={weekAgg.games.map((g) => g.game)}
-            entries={pool.entries}
-            index={index}
-            week={activeWeek}
-            highlightEntryId={me}
-          />
-        </Card>
-      </section>
-
-      <SeasonTrend pool={pool} index={index} />
+function Legend() {
+  const items = [
+    ["var(--win)", "Scored"],
+    ["var(--accent-track)", "Possible"],
+    ["var(--loss)", "Lost"],
+  ];
+  return (
+    <div className="flex gap-2.5 text-[11px] text-muted">
+      {items.map(([color, label]) => (
+        <span key={label} className="flex items-center gap-1">
+          <i className="size-2 rounded-full" style={{ background: color }} />
+          {label}
+        </span>
+      ))}
     </div>
   );
 }
 
-function truncate(value: string, n: number): string {
-  return value.length > n ? `${value.slice(0, n - 1)}…` : value;
+function Row({
+  row,
+  index,
+  person,
+  me,
+  mode,
+}: {
+  row: StandingRow;
+  index: number;
+  person: Person;
+  me: boolean;
+  mode: "season" | "week";
+}) {
+  const pct = (v: number) => (row.ladder ? `${(v / row.ladder) * 100}%` : "0%");
+  const lost = row.ladder - row.weekMax;
+  const delay = 0.1 + Math.min(index, 12) * 0.035;
+  return (
+    <motion.li
+      layout="position"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, layout: { type: "spring", stiffness: 380, damping: 32 } }}
+      className={`flex min-h-[60px] items-center gap-3 px-3.5 ${index ? "border-t border-line" : ""} ${
+        me ? "bg-accent-soft" : ""
+      }`}
+    >
+      <span className="w-6 text-center text-[15px] font-bold text-muted">{row.rank}</span>
+      <Avatar person={person} me={me} size={34} />
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-semibold">{person.name}</span>
+          <span className="block truncate text-xs text-faint">@{person.username}</span>
+        </span>
+        <span
+          className="flex h-1 overflow-hidden rounded-full bg-line"
+          role="img"
+          aria-label={`This week: ${row.weekScore} scored, max ${row.weekMax}`}
+        >
+          {[
+            [row.weekScore, "var(--win)"],
+            [row.weekMax - row.weekScore, "var(--accent-track)"],
+            [lost, "var(--loss)"],
+          ].map(([v, color], i) => (
+            <motion.span
+              key={i}
+              className="h-full origin-left"
+              style={{ width: pct(v as number), background: color as string }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.8, delay: delay + 0.1, ease: [0.2, 0.8, 0.2, 1] }}
+            />
+          ))}
+        </span>
+      </span>
+      <span className="text-right">
+        <span className="block text-[17px] font-bold tracking-[-0.3px]">{row.value}</span>
+        <span className="block whitespace-nowrap text-xs text-faint">
+          {mode === "week" ? `max ${row.weekMax}` : row.back === 0 ? "Leader" : `${row.back} back`}
+        </span>
+      </span>
+    </motion.li>
+  );
 }

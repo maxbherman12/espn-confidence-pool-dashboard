@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
-import { Card } from "@/components/ui";
 import { useStoredLeague } from "@/lib/hooks";
 
 /**
@@ -58,83 +57,70 @@ function LeagueSetup() {
   const valid = trimmed.length > 0;
 
   return (
-    <div className="mx-auto max-w-lg py-6 sm:py-12">
-      <Card className="p-5 sm:p-6">
-        <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
-          Point this at a league
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-          Paste the league id from your ESPN Pick&apos;em group URL. The league has
-          to be public; nothing is stored on a server and no league is configured
-          in the app.
-        </p>
+    <div className="px-4 pt-10">
+      <h1 className="px-1 text-[32px] font-extrabold leading-tight tracking-[-0.8px]">
+        Open your pool
+      </h1>
+      <p className="mt-2 px-1 text-[15px] leading-relaxed text-muted">
+        Paste the league id from your ESPN Pick&apos;em group link. The league has to
+        be public.
+      </p>
 
-        <form
-          className="mt-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!valid) return;
-            setLeague(trimmed);
-            router.push(`/?league=${encodeURIComponent(trimmed)}`);
-          }}
+      <form
+        className="card mt-5 p-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!valid) return;
+          setLeague(trimmed);
+          router.push(`/?league=${encodeURIComponent(trimmed)}`);
+        }}
+      >
+        <label htmlFor={inputId} className="block text-[13px] font-semibold text-muted">
+          League id
+        </label>
+        <input
+          id={inputId}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          className="mt-2 min-h-12 w-full rounded-xl bg-soft px-3 text-base outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
+        />
+        <button
+          type="submit"
+          disabled={!valid}
+          className="mt-3 min-h-12 w-full rounded-xl bg-accent text-[15px] font-semibold text-white transition-opacity disabled:opacity-40"
         >
-          <label
-            htmlFor={inputId}
-            className="block text-[11px] font-medium uppercase tracking-wider text-[var(--faint)]"
-          >
-            League id
-          </label>
-          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
-            <input
-              id={inputId}
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              inputMode="text"
-              className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 text-sm text-[#e8eaf0] outline-none focus:border-[var(--accent)]"
-            />
-            <button
-              type="submit"
-              disabled={!valid}
-              className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[#06121f] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Open
-            </button>
-          </div>
-        </form>
+          Open
+        </button>
+      </form>
 
-        {league ? (
-          <button
-            type="button"
-            onClick={() => router.push(`/?league=${encodeURIComponent(league)}`)}
-            className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 text-left text-sm transition-colors hover:border-[var(--accent)]"
-          >
-            <span className="min-w-0">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--faint)]">
-                Last opened
-              </span>
-              <span className="num block truncate text-[var(--muted)]">{league}</span>
-            </span>
-            <span className="shrink-0 text-[var(--accent)]">Open →</span>
-          </button>
-        ) : null}
+      {league ? (
+        <button
+          type="button"
+          onClick={() => router.push(`/?league=${encodeURIComponent(league)}`)}
+          className="card mt-3 flex min-h-14 w-full items-center justify-between gap-3 px-4 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-muted">Last opened</span>
+            <span className="block truncate text-sm">{league}</span>
+          </span>
+          <span className="shrink-0 font-semibold text-accent">Open</span>
+        </button>
+      ) : null}
 
-        <details className="mt-5 text-sm text-[var(--muted)]">
-          <summary className="cursor-pointer text-[var(--muted)]">
-            Where do I find the league id?
-          </summary>
-          <p className="mt-2 leading-relaxed">
-            Open your group on espn.com. The id is the last segment of the URL,
-            after <code className="text-[var(--faint)]">/group/</code>:
-          </p>
-          <p className="num mt-2 break-all rounded-md bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--faint)]">
-            fantasy.espn.com/football/pickem/…/group/&lt;league-id&gt;
-          </p>
-        </details>
-      </Card>
+      <details className="mt-5 px-1 text-sm text-muted">
+        <summary className="cursor-pointer font-semibold">Where do I find it?</summary>
+        <p className="mt-2 leading-relaxed">
+          Open your group on espn.com. The id is the last part of the URL, after{" "}
+          <code>/group/</code>:
+        </p>
+        <p className="mt-2 break-all rounded-xl bg-card px-3 py-2 text-xs text-faint">
+          fantasy.espn.com/football/pickem/…/group/&lt;league-id&gt;
+        </p>
+      </details>
     </div>
   );
 }
