@@ -14,13 +14,13 @@ export default function StandingsPage() {
 
 function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
   const [week, setWeek] = useState(pool.meta.currentWeek);
-  const [mode, setMode] = useState<"season" | "week">("season");
+  const [mode, setMode] = useState<"season" | "week">("week");
   const rows = useMemo(() => standings(pool, index, week, mode), [pool, index, week, mode]);
   // The card follows the selected tab: season place or this week's place.
   const me = rows.find((r) => r.entryId === meId)!;
   const open = openGames(index, week);
   const [selected, setSelected] = useState<string | null>(null);
-  const selectedRow = mode === "week" ? (rows.find((r) => r.entryId === selected) ?? null) : null;
+  const selectedRow = rows.find((r) => r.entryId === selected) ?? null;
 
   return (
     <>
@@ -40,7 +40,7 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
 
       <div className="flex items-center justify-between gap-2 px-5 pb-2 pt-1">
         <div role="tablist" aria-label="Standings view" className="flex rounded-full bg-card p-1 shadow-[var(--shadow)]">
-          {(["season", "week"] as const).map((m) => (
+          {(["week", "season"] as const).map((m) => (
             <button
               key={m}
               role="tab"
@@ -66,7 +66,7 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
             person={people.get(r.entryId)!}
             me={r.entryId === meId}
             mode={mode}
-            onOpen={mode === "week" ? () => setSelected(r.entryId) : undefined}
+            onOpen={() => setSelected(r.entryId)}
           />
         ))}
       </motion.ol>
@@ -75,9 +75,11 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
         row={selectedRow}
         person={selectedRow ? people.get(selectedRow.entryId) : undefined}
         me={selectedRow?.entryId === meId}
+        pool={pool}
         index={index}
         week={week}
         total={rows.length}
+        initialTab={mode}
         onClose={() => setSelected(null)}
       />
     </>
@@ -212,7 +214,7 @@ function Row({
       transition={{ delay, layout: { type: "spring", stiffness: 380, damping: 32 } }}
       className={`${index ? "border-t border-line" : ""} ${me ? "bg-accent-soft" : ""}`}
     >
-      <RowShell onOpen={onOpen} label={`${person.name}: week ${row.weekScore} points, max ${row.weekMax}. Show picks`}>
+      <RowShell onOpen={onOpen} label={`${person.name}: ${mode === "week" ? `week ${row.weekScore} points, max ${row.weekMax}` : `${row.value} points this season`}. Show overview`}>
       <span className="w-6 text-center text-[15px] font-bold text-muted">{row.rank}</span>
       <Avatar person={person} me={me} size={34} />
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
