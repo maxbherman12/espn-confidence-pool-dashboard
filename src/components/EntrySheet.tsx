@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { LockIcon } from "@/components/games/GameCard";
+import { SeasonStats } from "@/components/SeasonStats";
 import { Sheet } from "@/components/Sheet";
 import { Avatar, ordinal } from "@/components/ui";
 import type { Person } from "@/lib/name";
@@ -9,7 +10,9 @@ import type { PoolIndex } from "@/lib/pool/aggregate";
 import { skippedValues } from "@/lib/pool/possible";
 import { rootingGuide } from "@/lib/pool/rooting";
 import type { StandingRow } from "@/lib/pool/standings";
-import type { Outcome, PoolGame } from "@/lib/types";
+import type { Outcome, PoolGame, PoolModel } from "@/lib/types";
+
+export type EntryTab = "week" | "season";
 
 type PickState = "hit" | "missed" | "pending" | "skipped" | "hidden";
 
@@ -21,28 +24,46 @@ interface PickCell {
   state: PickState;
 }
 
-/** One person's week: score, max, projected finish, and every pick. */
+/**
+ * One person's overview: their week (score, max, projected finish, every pick)
+ * and their season (gap to first, weekly finishes, tiles).
+ */
 export function EntrySheet({
   row,
   person,
   me,
+  pool,
   index,
   week,
   total,
+  initialTab,
   onClose,
 }: {
   row: StandingRow | null;
   person: Person | undefined;
   me: boolean;
+  pool: PoolModel;
   index: PoolIndex;
   week: number;
   total: number;
+  /** Which tab to open on; follows the standings view it was opened from. */
+  initialTab: EntryTab;
   onClose: () => void;
 }) {
   return (
-    <Sheet open={Boolean(row)} onClose={onClose} label={person ? `${person.name}, week ${week}` : "Week"}>
+    <Sheet open={Boolean(row)} onClose={onClose} label={person ? `${person.name} overview` : "Overview"}>
       {row && person ? (
-        <Body row={row} person={person} me={me} index={index} week={week} total={total} />
+        <Body
+          key={row.entryId}
+          row={row}
+          person={person}
+          me={me}
+          pool={pool}
+          index={index}
+          week={week}
+          total={total}
+          initialTab={initialTab}
+        />
       ) : null}
     </Sheet>
   );
@@ -52,13 +73,69 @@ function Body({
   row,
   person,
   me,
+  pool,
+  index,
+  week,
+  total,
+  initialTab,
+}: {
+  row: StandingRow;
+  person: Person;
+  me: boolean;
+  pool: PoolModel;
+  index: PoolIndex;
+  week: number;
+  total: number;
+  initialTab: EntryTab;
+}) {
+  const [tab, setTab] = useState<EntryTab>(initialTab);
+  return (
+    <>
+      <div className="flex items-center gap-3 px-5 pb-3 pt-3 pr-16">
+        <Avatar person={person} me={me} size={44} />
+        <div className="min-w-0">
+          <div className="truncate text-lg font-bold">{me ? "You" : person.name}</div>
+          <div className="truncate text-[13px] text-faint">@{person.username}</div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-3">
+        <div role="tablist" aria-label="Overview" className="grid grid-cols-2 rounded-full bg-soft p-1">
+          {(["week", "season"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={`min-h-9 rounded-full text-[13px] font-semibold transition-colors ${
+                tab === t ? "bg-card text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-muted"
+              }`}
+            >
+              {t === "week" ? `Week ${week}` : "Season"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-8">
+        {tab === "week" ? (
+          <WeekTab row={row} index={index} week={week} total={total} />
+        ) : (
+          <SeasonStats pool={pool} index={index} entryId={row.entryId} you={me} inset />
+        )}
+      </div>
+    </>
+  );
+}
+
+function WeekTab({
+  row,
   index,
   week,
   total,
 }: {
   row: StandingRow;
-  person: Person;
-  me: boolean;
   index: PoolIndex;
   week: number;
   total: number;
@@ -72,17 +149,7 @@ function Body({
 
   return (
     <>
-      <div className="flex items-center gap-3 px-5 pb-4 pt-3 pr-16">
-        <Avatar person={person} me={me} size={44} />
-        <div className="min-w-0">
-          <div className="truncate text-lg font-bold">{me ? "You" : person.name}</div>
-          <div className="truncate text-[13px] text-faint">
-            @{person.username} · Week {week}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 px-4">
+      <div className="grid grid-cols-3 gap-2">
         <Stat label="Score" value={String(row.weekScore)} accent />
         <Stat label="Max" value={String(row.weekMax)} sub={`of ${row.ladder}`} />
         <Stat
@@ -92,7 +159,7 @@ function Body({
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-8 pt-4">
+      <div className="pt-4">
         <ul className="grid grid-cols-2 gap-2">
           {cells.map((c) => (
             <Cell key={c.game.propId} cell={c} />
