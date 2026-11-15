@@ -154,7 +154,7 @@ export function PageHeader({
   right?: ReactNode;
 }) {
   return (
-    <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-5">
+    <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-3">
       <div className="min-w-0">
         <div className="truncate text-[13px] font-semibold text-muted">{eyebrow}</div>
         <h1 className="mt-0.5 text-[32px] font-extrabold leading-tight tracking-[-0.8px]">
@@ -264,10 +264,9 @@ export function ErrorPanel({ error }: { error: Error }) {
       <h2 className="text-base font-bold text-loss">Couldn&apos;t load this league</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted">{error.message}</p>
       <p className="mt-3 text-sm text-faint">
-        The league id is the last part of your group&apos;s URL on espn.com, and the
-        league has to be public.{" "}
+        Check the link you used, or search for your group by name.{" "}
         <Link className="font-semibold text-accent" href="/?new=1">
-          Use a different league
+          Find your league
         </Link>
       </p>
     </div>

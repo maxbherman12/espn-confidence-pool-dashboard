@@ -22,7 +22,7 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
   return (
     <>
       <PageHeader
-        eyebrow={`${pool.meta.groupName} · Week ${week}`}
+        eyebrow={`Week ${week}`}
         title="Standings"
         right={<WeekPicker weeks={pool.meta.weeks} value={week} onChange={setWeek} />}
       />

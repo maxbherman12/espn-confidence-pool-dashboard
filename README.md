@@ -53,12 +53,15 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>, paste a league id, and the dashboard loads. The id
-is the last segment of your group URL on espn.com:
+Open <http://localhost:3000> and search for your group by name, or paste its
+link from the ESPN app or site (any text containing the group id works). Search
+uses ESPN's public group search for the current NFL Pick'em game (`/api/groups`),
+which needs no login and covers invite-only groups unless their admin hid them
+from search.
 
-```
-fantasy.espn.com/football/pickem/…/group/<league-id>
-```
+The pill at the top of every tab shows who you are and which league you're
+viewing. Tap it to switch league (the current one stays pinned, with a Keep
+button); any choice then asks who you are, so it is also how you switch person.
 
 The league lives in the URL as `?league=<id>`, so it is shareable: send someone
 the link and they get the same dashboard. Opening `/` with a league in your

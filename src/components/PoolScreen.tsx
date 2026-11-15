@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Suspense, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { LeagueGate, useLeagueParam } from "@/components/LeagueGate";
+import { LeagueSwitcher } from "@/components/LeagueSwitcher";
 import { Avatar, ErrorPanel, Loading } from "@/components/ui";
-import { useIdentity, usePeople, usePool, usePoolIndex } from "@/lib/hooks";
+import { useIdentity, usePeople, usePool, usePoolIndex, useRecentLeagues } from "@/lib/hooks";
 import type { Person } from "@/lib/name";
 import type { PoolIndex } from "@/lib/pool/aggregate";
 import type { PoolModel } from "@/lib/types";
@@ -38,16 +39,40 @@ function Loaded({ render }: { render: (ctx: PoolContext) => ReactNode }) {
   const index = usePoolIndex(pool);
   const people = usePeople(pool);
   const { entryId, setEntryId } = useIdentity();
+  const { remember } = useRecentLeagues();
+  const groupName = pool?.meta.groupName;
+
+  // Remember the league's name so the picker can list it under "Recent".
+  useEffect(() => {
+    if (leagueId && groupName) remember({ id: leagueId, name: groupName });
+  }, [leagueId, groupName, remember]);
 
   if (isLoading || !leagueId) return <Loading label="Loading your league…" />;
   if (error) return <ErrorPanel error={error as Error} />;
   if (!pool || !index) return null;
 
   const meValid = entryId && pool.entries.some((e) => e.entryId === entryId);
+  const switcher = (
+    <LeagueSwitcher
+      leagueId={leagueId}
+      leagueName={pool.meta.groupName}
+      me={meValid ? (people.get(entryId) ?? null) : null}
+    />
+  );
   if (!meValid) {
-    return <WhoAreYou pool={pool} people={people} onPick={setEntryId} />;
+    return (
+      <>
+        {switcher}
+        <WhoAreYou pool={pool} people={people} onPick={setEntryId} />
+      </>
+    );
   }
-  return <>{render({ pool, index, people, meId: entryId, switchMe: () => setEntryId(null) })}</>;
+  return (
+    <>
+      {switcher}
+      {render({ pool, index, people, meId: entryId, switchMe: () => setEntryId(null) })}
+    </>
+  );
 }
 
 function WhoAreYou({
@@ -69,9 +94,8 @@ function WhoAreYou({
   }, [pool, people, query]);
 
   return (
-    <div className="px-4 pt-6">
+    <div className="px-4 pt-4">
       <div className="px-1">
-        <div className="text-[13px] font-semibold text-muted">{pool.meta.groupName}</div>
         <h1 className="mt-0.5 text-[32px] font-extrabold leading-tight tracking-[-0.8px]">
           Which one is you?
         </h1>
