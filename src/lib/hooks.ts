@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalValue } from "@/lib/local";
 import { buildPeople, type Person } from "@/lib/name";
 import { indexPool, type PoolIndex } from "@/lib/pool/aggregate";
@@ -11,6 +11,8 @@ export const POOL_KEY = "pool" as const;
 /** Stores the chosen entry id. The old name-based key is ignored. */
 export const IDENTITY_KEY = "pickem:me";
 export const LEAGUE_KEY = "pickem:league";
+/** JSON list of `{ id, name }`, most recent first, for the league picker. */
+export const RECENT_KEY = "pickem:recent";
 
 async function fetchPool(leagueId: string): Promise<PoolModel> {
   const res = await fetch(`/api/pool?league=${encodeURIComponent(leagueId)}`);
@@ -50,6 +52,39 @@ export function usePoolIndex(pool: PoolModel | undefined): PoolIndex | null {
 export function useStoredLeague() {
   const [league, setLeague] = useLocalValue(LEAGUE_KEY);
   return { league, setLeague };
+}
+
+export interface RecentLeague {
+  id: string;
+  name: string;
+}
+
+function parseRecent(raw: string | null): RecentLeague[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list)
+      ? list.filter((l): l is RecentLeague => typeof l?.id === "string" && typeof l?.name === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Leagues opened on this device, with names, so switching back is one tap. */
+export function useRecentLeagues() {
+  const [raw, setRaw] = useLocalValue(RECENT_KEY);
+  const recent = parseRecent(raw);
+  const remember = useCallback(
+    (league: RecentLeague) => {
+      const list = parseRecent(raw);
+      if (list[0]?.id === league.id && list[0]?.name === league.name) return;
+      const next = [league, ...list.filter((l) => l.id !== league.id)].slice(0, 5);
+      setRaw(JSON.stringify(next));
+    },
+    [raw, setRaw],
+  );
+  return { recent, remember };
 }
 
 /**

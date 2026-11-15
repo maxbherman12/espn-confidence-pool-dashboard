@@ -465,3 +465,50 @@ export function impliedWinProbabilities(
   });
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * Group search
+ * ------------------------------------------------------------------ */
+
+export interface RawChallengeSummary {
+  id: number;
+  key: string;
+  active: boolean;
+  state: string;
+}
+
+/** Every gambit challenge ESPN has run (Pick'em, brackets, props, ...). */
+export function fetchChallenges(): Promise<RawChallengeSummary[]> {
+  return json<RawChallengeSummary[]>(`${GAMBIT}/challenges`);
+}
+
+export interface RawGroupSummary {
+  groupId: string;
+  size: number;
+  challengeSettings?: { scoringFormatId?: number };
+  groupSettings: {
+    name?: string;
+    logo?: string;
+    public?: boolean;
+    creatorMember?: { displayName?: string };
+  };
+}
+
+/**
+ * Groups in a challenge whose name contains `name`, largest first. This is the
+ * same search ESPN's "find a group" uses: no login needed, and it covers
+ * invite-only groups too unless their admin hid them from search.
+ * `total` comes from the `gambit-filter-group-count` header.
+ */
+export async function searchGroups(
+  challenge: string | number,
+  name: string,
+  limit = 20,
+): Promise<{ groups: RawGroupSummary[]; total: number | null }> {
+  const filter = JSON.stringify({ filterName: { value: name }, limit });
+  const { data, headers } = await getJsonWithHeaders<RawGroupSummary[]>(
+    `${GAMBIT}/challenges/${challenge}/groups?filter=${encodeURIComponent(filter)}`,
+  );
+  const raw = headers.get("gambit-filter-group-count");
+  return { groups: data, total: raw ? Number(raw) : null };
+}

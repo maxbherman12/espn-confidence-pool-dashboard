@@ -1,14 +1,13 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect } from "react";
+import { motion } from "motion/react";
+import { Sheet } from "@/components/Sheet";
 import { Avatar, TeamLogo } from "@/components/ui";
 import { LockIcon } from "./GameCard";
 import { kickoffLabel, modelFavorite, type GameView, type SideView } from "./gameView";
 
 /**
- * Full picks for one game, in a panel that slides up over most of the screen.
- * Dismiss by tapping outside, the close button, Escape, or dragging it down.
+ * Full picks for one game, in a slide-up sheet.
  */
 export function GameSheet({
   view,
@@ -19,55 +18,18 @@ export function GameSheet({
   meId: string;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    if (!view) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [view, onClose]);
-
   return (
-    <AnimatePresence>
-      {view ? (
-        <div className="fixed inset-0 z-40">
-          <motion.div
-            className="absolute inset-0 bg-black/35"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.section
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${view.away.short} at ${view.home.short}`}
-            className="absolute inset-x-0 bottom-0 mx-auto flex max-w-xl flex-col overflow-x-hidden rounded-t-[28px] bg-card shadow-[0_-8px_30px_rgb(0_0_0/0.15)]"
-            style={{ top: "max(48px, env(safe-area-inset-top))" }}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 120 || info.velocity.y > 600) onClose();
-            }}
-          >
-            <SheetBody view={view} meId={meId} onClose={onClose} />
-          </motion.section>
-        </div>
-      ) : null}
-    </AnimatePresence>
+    <Sheet
+      open={Boolean(view)}
+      onClose={onClose}
+      label={view ? `${view.away.short} at ${view.home.short}` : "Game"}
+    >
+      {view ? <SheetBody view={view} meId={meId} /> : null}
+    </Sheet>
   );
 }
 
-function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onClose: () => void }) {
+function SheetBody({ view, meId }: { view: GameView; meId: string }) {
   const { game, away, home, locked, decided } = view;
   const total = away.points + home.points || 1;
   const fav = modelFavorite(view);
@@ -75,20 +37,6 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
 
   return (
     <>
-      <div className="flex justify-center pt-2">
-        <span className="h-[5px] w-10 rounded-full bg-mark" />
-      </div>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-soft"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" />
-        </svg>
-      </button>
-
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-5 pt-[18px]">
         <BigTeam side={away} decided={decided} />
         <div className="px-1 text-center">
