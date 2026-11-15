@@ -229,9 +229,9 @@ function Row({
       </span>
       <span className="text-right">
         <span className="block text-[17px] font-bold tracking-[-0.3px]">{row.value}</span>
-        <span className="block whitespace-nowrap text-xs text-faint">
-          {mode === "week" ? `max ${row.weekMax}` : row.back === 0 ? "Leader" : `${row.back} back`}
-        </span>
+        {mode === "week" ? (
+          <span className="block whitespace-nowrap text-xs text-faint">max {row.weekMax}</span>
+        ) : null}
       </span>
     </motion.li>
   );

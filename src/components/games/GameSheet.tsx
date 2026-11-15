@@ -165,10 +165,17 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
   );
 }
 
-/** Average confidence on one side, e.g. "9.4", or "–" when nobody picked it. */
+/**
+ * The "average" pick on one side, as a median: one person dumping 15 points on
+ * an underdog shouldn't drag the typical pick around the way a mean would.
+ * Shown as "9" or "9.5", or "–" when nobody picked the side.
+ */
 function average(side: SideView): string {
-  if (!side.pickers.length) return "–";
-  return (side.points / side.pickers.length).toFixed(1);
+  const values = side.pickers.map((p) => p.confidence).sort((a, b) => a - b);
+  if (!values.length) return "–";
+  const mid = values.length >> 1;
+  const median = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+  return Number.isInteger(median) ? String(median) : median.toFixed(1);
 }
 
 function BigTeam({ side, decided }: { side: SideView; decided: boolean }) {
