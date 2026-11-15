@@ -360,12 +360,10 @@ describe("week summary (league overview)", () => {
 
     expect(summary.empty).toBe(false);
     expect(summary.participants).toBe(board.length);
-    expect(summary.leader?.entryId).toBe(
-      board.find((r) => r.score === Math.max(...scores))?.entryId,
-    );
-    expect(summary.last?.entryId).toBe(
-      board.find((r) => r.score === Math.min(...scores))?.entryId,
-    );
+    // Ties are common (most of the group sits on 0 early in a week), so check
+    // the score rather than which of several tied entries was chosen.
+    expect(summary.leader?.score).toBe(Math.max(...scores));
+    expect(summary.last?.score).toBe(Math.min(...scores));
     // The mean must sit inside the observed range.
     expect(summary.average).toBeGreaterThanOrEqual(Math.min(...scores));
     expect(summary.average).toBeLessThanOrEqual(Math.max(...scores));

@@ -3,11 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useLocalValue } from "@/lib/local";
+import { buildPeople, type Person } from "@/lib/name";
 import { indexPool, type PoolIndex } from "@/lib/pool/aggregate";
 import type { PoolModel } from "@/lib/types";
 
 export const POOL_KEY = "pool" as const;
-export const IDENTITY_KEY = "pickem:identity";
+/** Stores the chosen entry id. The old name-based key is ignored. */
+export const IDENTITY_KEY = "pickem:me";
 export const LEAGUE_KEY = "pickem:league";
 
 async function fetchPool(leagueId: string): Promise<PoolModel> {
@@ -52,11 +54,24 @@ export function useStoredLeague() {
 
 /**
  * "Which entry is mine" is stored locally rather than authenticated, since the
- * whole point of the dashboard is that ESPN's pool data is public.
+ * whole point of the dashboard is that ESPN's pool data is public. It stores
+ * the entry id: names repeat ("Sam's 1st Entry"), ids don't.
  */
 export function useIdentity() {
-  const [name, setName] = useLocalValue(IDENTITY_KEY);
-  return { name, setName };
+  const [entryId, setEntryId] = useLocalValue(IDENTITY_KEY);
+  return { entryId, setEntryId };
+}
+
+const peopleCache = new WeakMap<PoolModel, Map<string, Person>>();
+
+/** Display names, initials and avatar colours for every entry. */
+export function usePeople(pool: PoolModel | undefined): Map<string, Person> {
+  if (!pool) return new Map();
+  const hit = peopleCache.get(pool);
+  if (hit) return hit;
+  const built = buildPeople(pool.entries);
+  peopleCache.set(pool, built);
+  return built;
 }
 
 /** Ticks so "fetched 3m ago" labels stay accurate without a manual refresh. */

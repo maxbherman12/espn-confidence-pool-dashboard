@@ -75,6 +75,8 @@ export interface PoolGame {
   status: "COMPLETE" | "IN_PROGRESS" | "PENDING";
   /** Live clock text when in progress, e.g. "13:59 - 2nd Quarter". */
   statusDetail: string | null;
+  /** Kickoff time (ms since epoch). Picks lock, and become visible, at kickoff. */
+  kickoff: number | null;
   /** Empty while the game is undecided. */
   correctOutcomeIds: string[];
   outcomes: Outcome[];

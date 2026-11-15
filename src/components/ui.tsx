@@ -1,262 +1,275 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import Link from "next/link";
-import type { PoolGame } from "@/lib/types";
+import { useEffect, type ReactNode } from "react";
+import type { Person } from "@/lib/name";
+import type { PoolWeek } from "@/lib/types";
 
 /* ------------------------------------------------------------------ *
- * Team identity
+ * People and teams
  * ------------------------------------------------------------------ */
 
-function parseHex(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
-  const rr = r / 255;
-  const gg = g / 255;
-  const bb = b / 255;
-  const max = Math.max(rr, gg, bb);
-  const min = Math.min(rr, gg, bb);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h: number;
-  if (max === rr) h = ((gg - bb) / d + (gg < bb ? 6 : 0)) / 6;
-  else if (max === gg) h = ((bb - rr) / d + 2) / 6;
-  else h = ((rr - gg) / d + 4) / 6;
-  return [h, s, l];
-}
-
-function hslToHex([h, s, l]: [number, number, number]): string {
-  if (s === 0) {
-    const v = Math.round(l * 255);
-    const to = (x: number) => x.toString(16).padStart(2, "0");
-    return `#${to(v)}${to(v)}${to(v)}`;
-  }
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-  const channel = (t: number) => {
-    let x = t;
-    if (x < 0) x += 1;
-    if (x > 1) x -= 1;
-    if (x < 1 / 6) return p + (q - p) * 6 * x;
-    if (x < 1 / 2) return q;
-    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
-    return p;
-  };
-  const to = (x: number) =>
-    Math.round(x * 255)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${to(channel(h + 1 / 3))}${to(channel(h))}${to(channel(h - 1 / 3))}`;
-}
-
-/**
- * ESPN team colours run from near-black to neon, which makes many of them
- * unusable on a dark surface. Normalise in HSL rather than blending toward
- * white: raising lightness preserves the hue and saturation that tell
- * next-door teams apart (Vikings purple against Lions blue), whereas blending
- * to white would wash both into the same pastel.
- */
-export function readableColor(hex: string | null, fallback: string): string {
-  const rgb = parseHex(hex ?? "");
-  if (!rgb) return fallback;
-  const [h, s, l] = rgbToHsl(rgb);
-  const lightness = Math.min(0.74, Math.max(l, 0.55));
-  const saturation = Math.min(1, Math.max(s, 0.55));
-  return hslToHex([h, saturation, lightness]);
-}
-
-/* ------------------------------------------------------------------ *
- * Layout primitives
- * ------------------------------------------------------------------ */
-
-export function Card({
-  children,
+export function Avatar({
+  person,
+  me = false,
+  size = 32,
+  ring,
   className = "",
+  style,
 }: {
-  children: ReactNode;
+  person: Pick<Person, "initials" | "color" | "name"> | null;
+  me?: boolean;
+  size?: number;
+  /** Border colour, to separate overlapping avatars from what's behind them. */
+  ring?: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
-  return <div className={`card ${className}`}>{children}</div>;
-}
-
-/** Shared control chrome. 44px minimum height keeps taps usable. */
-const CONTROL =
-  "min-h-11 rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-2 text-sm text-[var(--text)] outline-none transition-colors focus:border-[var(--accent)]";
-
-export function Control({ className = "", ...rest }: React.ComponentProps<"select">) {
-  return <select {...rest} className={`${CONTROL} ${className}`} />;
-}
-
-export function Btn({
-  variant = "ghost",
-  className = "",
-  ...rest
-}: React.ComponentProps<"button"> & { variant?: "ghost" | "primary" | "quiet" }) {
-  const tone =
-    variant === "primary"
-      ? "border-[transparent] bg-[var(--accent)] font-semibold text-[#06121f] hover:bg-[var(--accent-strong)]"
-      : variant === "quiet"
-        ? "border-transparent text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-        : "border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--accent)]";
   return (
-    <button
-      {...rest}
-      className={`min-h-11 shrink-0 rounded-md border px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${tone} ${className}`}
-    />
+    <span
+      aria-hidden="true"
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold text-white ${className}`}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.round(size * 0.37),
+        background: me ? "var(--accent)" : (person?.color ?? "#8e8e96"),
+        border: ring ? `2px solid ${ring}` : undefined,
+        ...style,
+      }}
+    >
+      {person?.initials ?? "?"}
+    </span>
   );
 }
 
-export function SectionHead({
-  title,
-  hint,
+/** Overlapping avatars with a "+n" chip after `max`. */
+export function AvatarStack({
+  people,
+  meId,
+  max = 5,
+  size = 26,
+  ring = "var(--card)",
 }: {
-  title: string;
-  hint?: ReactNode;
+  people: (Person | undefined)[];
+  meId: string | null;
+  max?: number;
+  size?: number;
+  ring?: string;
 }) {
+  const shown = people.slice(0, max);
+  const extra = people.length - shown.length;
   return (
-    <h2 className="text-sm font-semibold tracking-tight">
-      {title}
-      {hint ? (
-        <span className="ml-0 mt-0.5 block text-[11px] font-normal text-[var(--faint)] sm:mt-0 sm:inline">
-          {hint}
+    <span className="flex">
+      {shown.map((p, i) => (
+        <Avatar
+          key={p?.entryId ?? i}
+          person={p ?? null}
+          me={p?.entryId === meId}
+          size={size}
+          ring={ring}
+          style={{ marginLeft: i ? -8 : 0 }}
+        />
+      ))}
+      {extra > 0 ? (
+        <span
+          className="flex shrink-0 items-center justify-center rounded-full bg-[#8e8e96] font-bold text-white"
+          style={{
+            width: size,
+            height: size,
+            fontSize: Math.round(size * 0.37),
+            border: `2px solid ${ring}`,
+            marginLeft: shown.length ? -8 : 0,
+          }}
+        >
+          +{extra}
         </span>
       ) : null}
-    </h2>
+    </span>
   );
 }
 
-export function Stat({
+export type RingTone = "pending" | "win" | "loss" | null;
+
+const RING: Record<Exclude<RingTone, null>, { ring: string; fill: string }> = {
+  pending: { ring: "var(--accent)", fill: "var(--accent-soft)" },
+  win: { ring: "var(--win)", fill: "var(--win-soft)" },
+  loss: { ring: "var(--loss)", fill: "var(--loss-soft)" },
+};
+
+/**
+ * Team logo, optionally ringed to mark "your pick": blue until the game is
+ * decided, then green if you were right and red if you weren't.
+ */
+export function TeamLogo({
+  src,
+  abbrev,
+  size = 42,
+  ring = null,
   label,
-  value,
-  sub,
-  tone = "default",
 }: {
-  label: string;
-  value: ReactNode;
-  sub?: ReactNode;
-  tone?: "default" | "positive" | "negative" | "warn";
+  src: string | null;
+  abbrev: string;
+  size?: number;
+  ring?: RingTone;
+  label?: string;
 }) {
-  const toneClass =
-    tone === "positive"
-      ? "text-[var(--positive)]"
-      : tone === "negative"
-        ? "text-[var(--negative)]"
-        : tone === "warn"
-          ? "text-[var(--warn)]"
-          : "text-[var(--text)]";
+  const box = Math.round(size * 1.28);
+  const tone = ring ? RING[ring] : null;
   return (
-    <div className="min-w-0">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--faint)]">
-        {label}
+    <span
+      className="relative flex shrink-0 items-center justify-center rounded-full transition-[box-shadow,background-color] duration-300"
+      style={{
+        width: box,
+        height: box,
+        boxShadow: tone ? `0 0 0 3px ${tone.ring}` : undefined,
+        background: tone ? tone.fill : undefined,
+      }}
+      role={label ? "img" : undefined}
+      aria-label={label}
+    >
+      {src ? (
+        // ESPN CDN logos via a plain <img>: keeps them off the image optimizer.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
+      ) : (
+        <span className="text-sm font-extrabold text-muted">{abbrev}</span>
+      )}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Layout
+ * ------------------------------------------------------------------ */
+
+export function PageHeader({
+  eyebrow,
+  title,
+  right,
+}: {
+  eyebrow: ReactNode;
+  title: string;
+  right?: ReactNode;
+}) {
+  return (
+    <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-5">
+      <div className="min-w-0">
+        <div className="truncate text-[13px] font-semibold text-muted">{eyebrow}</div>
+        <h1 className="mt-0.5 text-[32px] font-extrabold leading-tight tracking-[-0.8px]">
+          {title}
+        </h1>
       </div>
-      <div className={`num mt-0.5 text-xl font-semibold ${toneClass}`}>{value}</div>
-      {sub ? (
-        <div className="mt-0.5 truncate text-xs text-[var(--muted)]">{sub}</div>
-      ) : null}
+      {right}
+    </header>
+  );
+}
+
+/** Week picker: a pill that opens the native picker, which is best on phones. */
+export function WeekPicker({
+  weeks,
+  value,
+  onChange,
+}: {
+  weeks: PoolWeek[];
+  value: number;
+  onChange: (week: number) => void;
+}) {
+  const options = weeks.filter((w) => w.status !== "FUTURE" && w.gameCount > 0);
+  return (
+    <label className="card relative flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold">
+      <span className="sr-only">Week</span>
+      Wk {value}
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        {options.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`min-h-9 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+        active ? "bg-ink text-bg" : "bg-card text-ink"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Numbers
+ * ------------------------------------------------------------------ */
+
+/** Counts up to `value` on mount and glides between values after. */
+export function AnimatedNumber({ value }: { value: number }) {
+  const mv = useMotionValue(0);
+  const shown = useTransform(mv, (v) => Math.round(v).toString());
+  useEffect(() => {
+    const controls = animate(mv, value, { duration: 0.8, ease: [0.2, 0.8, 0.2, 1] });
+    return () => controls.stop();
+  }, [mv, value]);
+  return <motion.span>{shown}</motion.span>;
+}
+
+export function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * States
+ * ------------------------------------------------------------------ */
+
+export function Loading({ label = "Loading…" }: { label?: string }) {
+  return (
+    <div className="space-y-3 px-4 pt-6" aria-busy="true">
+      <p className="px-1 text-sm text-muted">{label}</p>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="card h-28 animate-pulse" />
+      ))}
     </div>
   );
 }
 
-export function StatusPill({ game }: { game: PoolGame }) {
-  if (game.status === "COMPLETE") {
-    return (
-      <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-dim)]">
-        Final
-      </span>
-    );
-  }
-  if (game.status === "IN_PROGRESS") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--negative)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--negative)]">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--negative)]" />
-        {game.statusDetail ?? "Live"}
-      </span>
-    );
-  }
-  return (
-    <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-dim)]">
-      Upcoming
-    </span>
-  );
-}
-
-export function TeamBadge({
-  abbrev,
-  logo,
-  color,
-  size = 20,
-}: {
-  abbrev: string;
-  logo: string | null;
-  color: string | null;
-  size?: number;
-}) {
-  const tint = readableColor(color, "var(--away-fallback)");
-  if (logo) {
-    return (
-      // Team logos come from ESPN's CDN as small PNGs. A plain <img> keeps them
-      // off Vercel's image optimizer, which matters on the free tier.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={logo}
-        alt=""
-        width={size}
-        height={size}
-        className="shrink-0 rounded-sm object-contain"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-sm font-semibold text-[#080b12]"
-      style={{
-        width: size,
-        height: size,
-        background: tint,
-        fontSize: Math.max(8, Math.round(size * 0.42)),
-      }}
-    >
-      {abbrev.slice(0, 2)}
-    </span>
-  );
-}
-
-export function pct(n: number, digits = 0): string {
-  return `${(n * 100).toFixed(digits)}%`;
-}
-
-export function signed(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
-}
-
 export function ErrorPanel({ error }: { error: Error }) {
   return (
-    <Card className="p-5">
-      <h2 className="text-sm font-semibold text-[var(--negative)]">
-        Could not load this league
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-dim)]">
-        {error.message}
-      </p>
-      <p className="mt-3 text-xs text-[var(--faint)]">
-        The league id is the last segment of your group&apos;s URL on espn.com, and
-        the league has to be public.{" "}
-        <Link
-          className="text-[var(--accent)] underline-offset-2 hover:underline"
-          href="/?new=1"
-        >
+    <div className="card m-4 p-5">
+      <h2 className="text-base font-bold text-loss">Couldn&apos;t load this league</h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{error.message}</p>
+      <p className="mt-3 text-sm text-faint">
+        The league id is the last part of your group&apos;s URL on espn.com, and the
+        league has to be public.{" "}
+        <Link className="font-semibold text-accent" href="/?new=1">
           Use a different league
         </Link>
-        .
       </p>
-    </Card>
+    </div>
   );
 }

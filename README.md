@@ -9,32 +9,39 @@ and nothing is written back to ESPN.
 
 ## What it shows
 
-**Distribution** (`/`)
-- A per-game bar split by the share of members on each side. Point at or tap a
-  side to see who backed it, what confidence they put on it, and how the group
-  compares with the national pool.
-- Confidence ladder (histogram) for every game, so you can see whether the group
-  is treating a game as a coin flip or a lock. Every chart shares the same
-  1..16 axis, so shapes are directly comparable game to game; the rung numbers
-  are shown on desktop and drop to the two endpoints on phones.
-- Confidence heatmap of every member's allocation across the week's games.
-- ESPN BPI (projected win probability), DraftKings moneyline and spread, and
-  de-vigged implied win probability per side.
-- Season trend: group average weekly score and how far the group's consensus sat
-  from the national pool each week.
-- League overview: average points, first place, and last place for the week.
+A mobile-first app with four tabs. The first visit asks "which one is you?" and
+highlights your entry everywhere after that (saved on the device only).
+
+**Standings** (`/`)
+- Your place, season total, and how far behind first you are.
+- A ring showing this week's points: scored, still possible, and lost. The
+  "max" is the whole-week best case, matching ESPN's `possiblePointsMax`, not
+  just the games played so far.
+- The leaderboard, by season or by week, with the same scored/possible/lost bar
+  for everyone.
+
+**Games** (`/games`)
+- One card per game: logos, score or kickoff time, and who picked each side.
+- Your pick is ringed: blue until the game is decided, then green or red.
+- Tap a card for everyone's picks and points, the ESPN model's odds, the
+  national pick split and the Vegas line.
+- ESPN hides every pick until kickoff, so upcoming games say so.
 
 **What if** (`/whatif`)
-- Set a winner for any game, including flipping games that have already been
-  scored, to backtest a decision.
-- Weekly and season standings, recomputed from raw picks, with rank deltas,
-  score deltas, and the best score still reachable.
-- Presets: actual results, group consensus, model favourites, underdogs, random.
-- The scenario is encoded in the URL, so a projection is shareable as a link.
-- A self-check that recomputes every member's week from their raw picks and
-  verifies it reproduces ESPN's reported scores, ranks, and `possiblePointsMax`.
+- Tap who wins any game, including ones already played, and the week's
+  standings re-sort with an animation. Presets: what happened, group favorites,
+  and "my picks win".
 
-Both pages are built mobile-first and work down to a 320px viewport.
+**Season** (`/season`)
+- Points behind first place after every week, where you finished each week,
+  best week, and how often you beat the group average.
+
+### Names
+
+Most entries are called "Sam's 1st Entry". Custom entry names are kept;
+default ones become a first name, with an initial when it is shared ("Sam M.",
+"Sam L."). The ESPN username shows underneath. To use your own names, add them
+to `src/config/nicknames.ts`, keyed by ESPN username.
 
 ## Setup
 
@@ -136,7 +143,8 @@ verifying against a fixed pool.
 src/lib/espn/       upstream clients + payload types, normalization to PoolModel
 src/lib/pool/       indexing, aggregation, ranking, weekly summary, simulation
 src/app/api/pool/   cached route handler: league -> challenge -> enriched model
-src/app/            / (Distribution) and /whatif
-src/components/     charts, league setup/gating, shared UI
+src/app/            / (Standings), /games, /whatif, /season
+src/components/     screens, game card + detail sheet, league setup, shared UI
+src/config/         nicknames
 tests/              live correctness tests
 ```

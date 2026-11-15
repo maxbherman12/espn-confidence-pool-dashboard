@@ -6,10 +6,10 @@ import type {
   SimulationResult,
 } from "@/lib/types";
 import { indexPool, type PoolIndex } from "./aggregate";
+import { weekPossibleMax, type Scenario } from "./possible";
 import { competitionRanks } from "./rank";
 
-/** propId -> winning outcomeId. A game absent from the map is unresolved. */
-export type Scenario = Record<string, string>;
+export type { Scenario };
 
 function picksOf(index: PoolIndex, entryId: string) {
   return index.picksByEntry.get(entryId) ?? new Map();
@@ -158,26 +158,21 @@ export function weekCeiling(index: PoolIndex, week: number): Record<string, numb
 }
 
 /**
- * ESPN's `possiblePointsMax` for a week: the score already banked on decided
- * games plus the confidence still riding on undecided ones. Recomputing this
- * independently is the strongest available proof that the scoring engine
- * agrees with ESPN.
+ * ESPN's `possiblePointsMax` for a week. Recomputing this independently is the
+ * strongest available proof that the scoring engine agrees with ESPN.
  */
 export function reachablePoints(
   index: PoolIndex,
   entryId: string,
   week: number,
 ): number {
-  return maxPoints(index, entryId, week, {});
+  return weekPossibleMax(index, entryId, week);
 }
 
 /**
- * The best score an entry could still reach in a week, given the scenario.
- *
- * A pick counts unless it is *known* to be wrong: an overridden game is always
- * winnable, an undecided game is always winnable, and a decided-and-unplayed
- * game only counts if the pick was already correct. With no overrides this
- * reduces to ESPN's `possiblePointsMax`.
+ * The best score an entry could still reach in a week under the scenario:
+ * the whole week's confidence ladder minus everything known to be lost. See
+ * `weekPossibleMax` for why hidden (not yet kicked off) picks count in full.
  */
 export function maxPoints(
   index: PoolIndex,
@@ -185,19 +180,7 @@ export function maxPoints(
   week: number,
   scenario: Scenario,
 ): number {
-  const picks = picksOf(index, entryId);
-  let total = 0;
-  for (const game of index.gamesByWeek.get(week) ?? []) {
-    const pick = picks.get(game.propId);
-    if (!pick) continue;
-    if (scenario[game.propId]) {
-      total += pick.confidence;
-      continue;
-    }
-    const correct = game.correctOutcomeIds[0];
-    if (!correct || pick.outcomeId === correct) total += pick.confidence;
-  }
-  return total;
+  return weekPossibleMax(index, entryId, week, scenario);
 }
 
 /**
