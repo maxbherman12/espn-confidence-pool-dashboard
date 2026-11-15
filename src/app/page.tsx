@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { EntrySheet } from "@/components/EntrySheet";
 import { PoolScreen, type PoolContext } from "@/components/PoolScreen";
 import { AnimatedNumber, Avatar, PageHeader, WeekPicker, ordinal } from "@/components/ui";
 import type { Person } from "@/lib/name";
@@ -18,6 +19,8 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
   // The card follows the selected tab: season place or this week's place.
   const me = rows.find((r) => r.entryId === meId)!;
   const open = openGames(index, week);
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedRow = mode === "week" ? (rows.find((r) => r.entryId === selected) ?? null) : null;
 
   return (
     <>
@@ -63,9 +66,20 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
             person={people.get(r.entryId)!}
             me={r.entryId === meId}
             mode={mode}
+            onOpen={mode === "week" ? () => setSelected(r.entryId) : undefined}
           />
         ))}
       </motion.ol>
+
+      <EntrySheet
+        row={selectedRow}
+        person={selectedRow ? people.get(selectedRow.entryId) : undefined}
+        me={selectedRow?.entryId === meId}
+        index={index}
+        week={week}
+        total={rows.length}
+        onClose={() => setSelected(null)}
+      />
     </>
   );
 }
@@ -177,12 +191,15 @@ function Row({
   person,
   me,
   mode,
+  onOpen,
 }: {
   row: StandingRow;
   index: number;
   person: Person;
   me: boolean;
   mode: "season" | "week";
+  /** Opens this person's week overview (week view only). */
+  onOpen?: () => void;
 }) {
   const pct = (v: number) => (row.ladder ? `${(v / row.ladder) * 100}%` : "0%");
   const lost = row.ladder - row.weekMax;
@@ -193,10 +210,9 @@ function Row({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, layout: { type: "spring", stiffness: 380, damping: 32 } }}
-      className={`flex min-h-[60px] items-center gap-3 px-3.5 ${index ? "border-t border-line" : ""} ${
-        me ? "bg-accent-soft" : ""
-      }`}
+      className={`${index ? "border-t border-line" : ""} ${me ? "bg-accent-soft" : ""}`}
     >
+      <RowShell onOpen={onOpen} label={`${person.name}: week ${row.weekScore} points, max ${row.weekMax}. Show picks`}>
       <span className="w-6 text-center text-[15px] font-bold text-muted">{row.rank}</span>
       <Avatar person={person} me={me} size={34} />
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -233,6 +249,27 @@ function Row({
           <span className="block whitespace-nowrap text-xs text-faint">max {row.weekMax}</span>
         ) : null}
       </span>
+      </RowShell>
     </motion.li>
+  );
+}
+
+/** The row's content box: a button when it opens a detail sheet. */
+function RowShell({
+  onOpen,
+  label,
+  children,
+}: {
+  onOpen?: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  const cls = "flex min-h-[60px] w-full items-center gap-3 px-3.5 text-left";
+  return onOpen ? (
+    <button type="button" onClick={onOpen} aria-label={label} className={`${cls} active:bg-soft`}>
+      {children}
+    </button>
+  ) : (
+    <div className={cls}>{children}</div>
   );
 }
