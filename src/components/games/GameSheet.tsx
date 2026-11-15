@@ -134,6 +134,11 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
                 />
               </div>
             </div>
+            <div className="mx-5 mt-2 flex justify-between gap-2 text-[13px] text-muted">
+              <span className="whitespace-nowrap">avg {average(away)}</span>
+              <span className="min-w-0 text-center">Average pick</span>
+              <span className="whitespace-nowrap">avg {average(home)}</span>
+            </div>
             <div className="grid grid-cols-2 gap-2.5 px-3.5 pb-4 pt-4">
               <PickerColumn side={away} meId={meId} decided={decided} />
               <PickerColumn side={home} meId={meId} decided={decided} />
@@ -158,6 +163,12 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
       )}
     </>
   );
+}
+
+/** Average confidence on one side, e.g. "9.4", or "–" when nobody picked it. */
+function average(side: SideView): string {
+  if (!side.pickers.length) return "–";
+  return (side.points / side.pickers.length).toFixed(1);
 }
 
 function BigTeam({ side, decided }: { side: SideView; decided: boolean }) {

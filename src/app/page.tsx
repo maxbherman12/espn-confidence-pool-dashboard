@@ -15,13 +15,8 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
   const [week, setWeek] = useState(pool.meta.currentWeek);
   const [mode, setMode] = useState<"season" | "week">("season");
   const rows = useMemo(() => standings(pool, index, week, mode), [pool, index, week, mode]);
-  const seasonRows = useMemo(
-    () => (mode === "season" ? rows : standings(pool, index, week, "season")),
-    [pool, index, week, mode, rows],
-  );
-  const me = seasonRows.find((r) => r.entryId === meId)!;
-  const leader = seasonRows[0];
-  const second = seasonRows.find((r) => r.entryId !== meId);
+  // The card follows the selected tab: season place or this week's place.
+  const me = rows.find((r) => r.entryId === meId)!;
   const open = openGames(index, week);
 
   return (
@@ -35,8 +30,7 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
       <YouCard
         me={me}
         person={people.get(meId)!}
-        leaderName={people.get(leader.entryId)?.name ?? ""}
-        secondValue={second?.value ?? 0}
+        mode={mode}
         open={open}
         onSwitch={switchMe}
       />
@@ -57,7 +51,7 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
             </button>
           ))}
         </div>
-        <Legend />
+        {mode === "week" ? <Legend /> : null}
       </div>
 
       <motion.ol layout className="card mx-4 overflow-hidden py-1">
@@ -79,15 +73,13 @@ function Standings({ pool, index, people, meId, switchMe }: PoolContext) {
 function YouCard({
   me,
   person,
-  leaderName,
-  secondValue,
+  mode,
   open,
   onSwitch,
 }: {
   me: StandingRow;
   person: Person;
-  leaderName: string;
-  secondValue: number;
+  mode: "season" | "week";
   open: number;
   onSwitch: () => void;
 }) {
@@ -100,13 +92,8 @@ function YouCard({
   const gone = seg(lost);
   const done = open === 0;
 
-  const standing =
-    me.rank === 1
-      ? `In 1st, ${me.value - secondValue} ahead.`
-      : `${me.back} behind ${leaderName}.`;
-  const weekLine = done
-    ? `Scored ${me.weekScore} of ${me.ladder} this week.`
-    : `${lost ? `Lost ${lost} so far` : "Nothing lost yet"} · ${open} game${open === 1 ? "" : "s"} still open.`;
+  const scope = mode === "season" ? "for the season" : "this week";
+  const standing = me.back === 0 ? `In 1st ${scope}` : `${me.back} behind 1st ${scope}`;
 
   return (
     <section aria-label="You" className="card mx-4 my-2 flex items-center gap-4 p-[18px]">
@@ -145,7 +132,7 @@ function YouCard({
             <AnimatedNumber value={done ? me.weekScore : me.weekMax} />
           </div>
           <div className="mt-1 text-[11px] font-semibold text-muted">
-            {done ? "scored" : "max this week"}
+            {done ? "scored" : "week max"}
           </div>
         </div>
       </div>
@@ -160,9 +147,7 @@ function YouCard({
             · <AnimatedNumber value={me.value} /> pts
           </span>
         </div>
-        <div className="text-[13px] leading-snug text-muted">
-          {standing} {weekLine}
-        </div>
+        <div className="text-[13px] leading-snug text-muted">{standing}</div>
       </div>
     </section>
   );
@@ -219,6 +204,7 @@ function Row({
           <span className="block truncate text-[15px] font-semibold">{person.name}</span>
           <span className="block truncate text-xs text-faint">@{person.username}</span>
         </span>
+        {mode === "week" ? (
         <span
           className="flex h-1 overflow-hidden rounded-full bg-line"
           role="img"
@@ -239,6 +225,7 @@ function Row({
             />
           ))}
         </span>
+        ) : null}
       </span>
       <span className="text-right">
         <span className="block text-[17px] font-bold tracking-[-0.3px]">{row.value}</span>
