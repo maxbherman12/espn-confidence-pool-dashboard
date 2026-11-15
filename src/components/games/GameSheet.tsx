@@ -135,9 +135,9 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
               </div>
             </div>
             <div className="mx-5 mt-2 flex justify-between gap-2 text-[13px] text-muted">
-              <span className="whitespace-nowrap">avg {average(away)}</span>
-              <span className="min-w-0 text-center">Average pick</span>
-              <span className="whitespace-nowrap">avg {average(home)}</span>
+              <span className="whitespace-nowrap">med {median(away)}</span>
+              <span className="min-w-0 text-center">Median pick</span>
+              <span className="whitespace-nowrap">med {median(home)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2.5 px-3.5 pb-4 pt-4">
               <PickerColumn side={away} meId={meId} decided={decided} />
@@ -166,16 +166,16 @@ function SheetBody({ view, meId, onClose }: { view: GameView; meId: string; onCl
 }
 
 /**
- * The "average" pick on one side, as a median: one person dumping 15 points on
+ * The median pick on one side: one person dumping 15 points on
  * an underdog shouldn't drag the typical pick around the way a mean would.
  * Shown as "9" or "9.5", or "–" when nobody picked the side.
  */
-function average(side: SideView): string {
+function median(side: SideView): string {
   const values = side.pickers.map((p) => p.confidence).sort((a, b) => a - b);
   if (!values.length) return "–";
   const mid = values.length >> 1;
-  const median = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
-  return Number.isInteger(median) ? String(median) : median.toFixed(1);
+  const value = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function BigTeam({ side, decided }: { side: SideView; decided: boolean }) {
