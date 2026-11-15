@@ -6,7 +6,9 @@ import { LockIcon } from "@/components/games/GameCard";
 import { shortTeam } from "@/components/games/gameView";
 import { PoolScreen, type PoolContext } from "@/components/PoolScreen";
 import { Avatar, Chip, PageHeader, WeekPicker, ordinal } from "@/components/ui";
+import type { PoolIndex } from "@/lib/pool/aggregate";
 import { isLocked } from "@/lib/pool/possible";
+import { rootingGuide } from "@/lib/pool/rooting";
 import { simulate, type Scenario } from "@/lib/pool/simulate";
 import type { PoolGame } from "@/lib/types";
 
@@ -80,6 +82,9 @@ function WhatIf({ pool, index, people, meId }: PoolContext) {
     if (p === "crowd" || p === "mine") {
       for (const g of games) {
         const choice = p === "crowd" ? crowdFavorite(g) : myPicks?.get(g.propId)?.outcomeId;
+        // "My picks win" only plays out what's still open; finished games keep
+        // their real result unless you flip them yourself.
+        if (p === "mine" && g.correctOutcomeIds.length > 0) continue;
         if (choice && choice !== g.correctOutcomeIds[0]) next[g.propId] = choice;
       }
     }
@@ -212,6 +217,8 @@ function WhatIf({ pool, index, people, meId }: PoolContext) {
         ) : null}
       </section>
 
+      <RootFor index={index} week={week} meId={meId} games={games} />
+
       {hiddenGames > 0 ? (
         <p className="mx-5 mt-3 flex items-start gap-1.5 text-[13px] leading-snug text-muted">
           <span className="mt-0.5 shrink-0"><LockIcon /></span>
@@ -289,5 +296,100 @@ function WhatIf({ pool, index, people, meId }: PoolContext) {
         })}
       </ul>
     </>
+  );
+}
+
+/** Which side of each live game helps the viewer's projected weekly finish. */
+function RootFor({
+  index,
+  week,
+  meId,
+  games,
+}: {
+  index: PoolIndex;
+  week: number;
+  meId: string;
+  games: PoolGame[];
+}) {
+  const guide = useMemo(() => rootingGuide(index, week, meId), [index, week, meId]);
+  const upcoming = games.some((g) => !isLocked(g, index));
+
+  if (guide.games.length === 0) {
+    return upcoming ? (
+      <p className="card mx-4 mt-3 px-4 py-3 text-[13px] text-muted">
+        <span className="font-bold text-ink">Root for</span> · shows up once games kick off and picks
+        are revealed.
+      </p>
+    ) : null;
+  }
+
+  const myPicks = index.picksByEntry.get(meId);
+  return (
+    <section className="card mx-4 mt-3 px-3 pb-2 pt-3" aria-label="Who to root for">
+      <div className="flex items-baseline justify-between px-1 pb-1">
+        <span className="text-[15px] font-bold">Root for</span>
+        <span className="text-[13px] font-semibold text-muted">
+          Projected {ordinal(Math.round(guide.projectedRank))} this week
+        </span>
+      </div>
+      <ul>
+        {guide.games.map(({ game, sides, rootFor, spots }, i) => {
+          const pickSide = rootFor ?? sides[0].outcomeId;
+          const team = game.outcomes.find((o) => o.outcomeId === pickSide)!;
+          const other = game.outcomes.find((o) => o.outcomeId !== pickSide)!;
+          const prob = sides.find((s) => s.outcomeId === pickSide)!.winProb;
+          const mine = myPicks?.get(game.propId);
+          const mineTeam = mine ? game.outcomes.find((o) => o.outcomeId === mine.outcomeId) : null;
+          const label = spots.toFixed(1);
+          return (
+            <li
+              key={game.propId}
+              className={`flex min-h-14 items-center gap-2.5 px-1 py-2 ${i ? "border-t border-line" : ""}`}
+            >
+              {team.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={team.logo}
+                  alt=""
+                  width={30}
+                  height={30}
+                  className={`size-[30px] shrink-0 ${rootFor ? "" : "opacity-50 grayscale"}`}
+                />
+              ) : (
+                <span className="w-[30px] shrink-0 text-center text-xs font-bold">{team.abbrev}</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-semibold">
+                  {rootFor ? (
+                    <>
+                      Root for <span className="font-extrabold">{shortTeam(team)}</span>
+                    </>
+                  ) : (
+                    `${team.abbrev} vs ${other.abbrev}`
+                  )}
+                </div>
+                <div className="truncate text-xs text-muted">
+                  {rootFor
+                    ? `vs ${shortTeam(other)} · ${Math.round(prob * 100)}% to win`
+                    : "Doesn't move your spot"}
+                  {mineTeam ? ` · You: ${mineTeam.abbrev} ${mine!.confidence}` : ""}
+                </div>
+              </div>
+              <span
+                className={`shrink-0 rounded-lg px-2 py-1 text-[13px] font-bold ${
+                  rootFor ? "bg-win-soft text-win" : "bg-soft text-faint"
+                }`}
+              >
+                {rootFor ? `+${label} spot${label === "1.0" ? "" : "s"}` : "Either way"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="px-1 pt-1 text-[11px] leading-snug text-faint">
+        Expected places gained in this week&apos;s standings, from live scores and pregame odds. Games
+        that haven&apos;t kicked off aren&apos;t counted since picks are hidden until then.
+      </p>
+    </section>
   );
 }
